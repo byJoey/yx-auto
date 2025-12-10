@@ -24,6 +24,7 @@ const directDomains = [
     { domain: "cfip.1323123.xyz" },
     { domain: "cloudflare-ip.mofashi.ltd" },
     { domain: "cf.877771.xyz" },
+    { domain: "saas.sin.fan" },
     { domain: "xn--b6gac.eu.org" }
 ];
 
