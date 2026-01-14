@@ -11,6 +11,8 @@ let egi = true;  // 启用GitHub优选
 let ev = true;   // 启用VLESS协议
 let et = false;  // 启用Trojan协议
 let vm = false;  // 启用VMess协议
+let httpPort = 80;
+let https = 443;
 let scu = 'https://url.v1.mk/sub';  // 订阅转换地址
 
 // 默认优选域名列表
@@ -255,8 +257,8 @@ async function fetchAndParseNewIPs(piu) {
 function generateLinksFromSource(list, user, workerDomain, disableNonTLS = false, customPath = '/') {
     const CF_HTTP_PORTS = [80, 8080, 8880, 2052, 2082, 2086, 2095];
     const CF_HTTPS_PORTS = [443, 2053, 2083, 2087, 2096, 8443];
-    const defaultHttpsPorts = [443];
-    const defaultHttpPorts = disableNonTLS ? [] : [80];
+    const defaultHttpsPorts = [httpsPort];
+    const defaultHttpPorts = disableNonTLS ? [] : [httpPort];
     const links = [];
     const wsPath = customPath || '/';
     const proto = 'vless';
@@ -321,8 +323,8 @@ function generateLinksFromSource(list, user, workerDomain, disableNonTLS = false
 async function generateTrojanLinksFromSource(list, user, workerDomain, disableNonTLS = false, customPath = '/') {
     const CF_HTTP_PORTS = [80, 8080, 8880, 2052, 2082, 2086, 2095];
     const CF_HTTPS_PORTS = [443, 2053, 2083, 2087, 2096, 8443];
-    const defaultHttpsPorts = [443];
-    const defaultHttpPorts = disableNonTLS ? [] : [80];
+    const defaultHttpsPorts = [httpsPort];
+    const defaultHttpPorts = disableNonTLS ? [] : [httpPort];
     const links = [];
     const wsPath = customPath || '/';
     const password = user;  // Trojan使用UUID作为密码
@@ -387,8 +389,8 @@ async function generateTrojanLinksFromSource(list, user, workerDomain, disableNo
 function generateVMessLinksFromSource(list, user, workerDomain, disableNonTLS = false, customPath = '/') {
     const CF_HTTP_PORTS = [80, 8080, 8880, 2052, 2082, 2086, 2095];
     const CF_HTTPS_PORTS = [443, 2053, 2083, 2087, 2096, 8443];
-    const defaultHttpsPorts = [443];
-    const defaultHttpPorts = disableNonTLS ? [] : [80];
+    const defaultHttpsPorts = [httpsPort];
+    const defaultHttpPorts = disableNonTLS ? [] : [httpPort];
     const links = [];
     const wsPath = customPath || '/';
 
@@ -1532,7 +1534,8 @@ export default {
     async fetch(request, env, ctx) {
         const url = new URL(request.url);
         const path = url.pathname;
-        
+        httpPort = (env.httpPort || env.HTTPPOST || httpPort).toLowerCase();
+        httpsPort = (env.httpsPort || env.HTTPSPORT || https).toLowerCase();
         // 主页
         if (path === '/' || path === '') {
             const scuValue = env?.scu || scu;
