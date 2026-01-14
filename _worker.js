@@ -12,7 +12,7 @@ let ev = true;   // 启用VLESS协议
 let et = false;  // 启用Trojan协议
 let vm = false;  // 启用VMess协议
 let httpPort = 80;
-let https = 443;
+let httpsPort = 443;
 let scu = 'https://url.v1.mk/sub';  // 订阅转换地址
 
 // 默认优选域名列表
