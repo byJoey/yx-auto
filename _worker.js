@@ -1204,6 +1204,15 @@ function generateHomePage(scuValue) {
             </div>
             
             <div class="form-group">
+                <label>HTTPS端口</label>
+                <input type="text" id="httpsPort" placeholder="请输入HTTPS端口">
+            </div>
+            <div class="form-group">
+                <label>HTTP端口</label>
+                <input type="text" id="httpPort" placeholder="请输入HTTP端口">
+            </div>
+            
+            <div class="form-group">
                 <label>WebSocket路径（可选）</label>
                 <input type="text" id="customPath" placeholder="留空则使用默认路径 /" value="/">
                 <small style="display: block; margin-top: 6px; color: #86868b; font-size: 13px;">自定义WebSocket路径，例如：/v2ray 或 /</small>
@@ -1398,6 +1407,7 @@ function generateHomePage(scuValue) {
             const uuid = document.getElementById('uuid').value.trim();
             const customPath = document.getElementById('customPath').value.trim() || '/';
             
+            
             if (!domain || !uuid) {
                 alert('请先填写域名和UUID/Password');
                 return;
@@ -1409,6 +1419,14 @@ function generateHomePage(scuValue) {
                 return;
             }
             
+            const httpPortdoc = document.getElementById('httpPort').value.trim();
+           if (httpPortdoc) {
+              httpPort = httpPortdoc;
+            }
+            const httpsPortdoc = document.getElementById('httpsPort').value.trim();
+           if (httpsPortdoc) {
+              httpsPort = httpsPortdoc;
+            }
             const ipv4Enabled = document.getElementById('ipv4Enabled').checked;
             const ipv6Enabled = document.getElementById('ipv6Enabled').checked;
             const ispMobile = document.getElementById('ispMobile').checked;
@@ -1419,8 +1437,9 @@ function generateHomePage(scuValue) {
             
             const currentUrl = new URL(window.location.href);
             const baseUrl = currentUrl.origin;
-            let subscriptionUrl = \`\${baseUrl}/\${uuid}/sub?domain=\${encodeURIComponent(domain)}&epd=\${switches.switchDomain ? 'yes' : 'no'}&epi=\${switches.switchIP ? 'yes' : 'no'}&egi=\${switches.switchGitHub ? 'yes' : 'no'}\`;
-            
+           // let subscriptionUrl = \`\${baseUrl}/\${uuid}/sub?domain=\${encodeURIComponent(domain)}&epd=\${switches.switchDomain ? 'yes' : 'no'}&epi=\${switches.switchIP ? 'yes' : 'no'}&egi=\${switches.switchGitHub ? 'yes' : 'no'}\`;
+           // 修改后的拼接方式
+           let subscriptionUrl = \`\${baseUrl}/\${uuid}/sub?domain=\${encodeURIComponent(domain)}&epd=\${switches.switchDomain ? 'yes' : 'no'}&epi=\${switches.switchIP ? 'yes' : 'no'}&egi=\${switches.switchGitHub ? 'yes' : 'no'}&httpport=\${encodeURIComponent(httpPortdoc)}&httpsport=\${encodeURIComponent(httpsPortdoc)}\`; 
             // 添加GitHub优选URL
             if (githubUrl) {
                 subscriptionUrl += \`&piu=\${encodeURIComponent(githubUrl)}\`;
@@ -1609,7 +1628,16 @@ export default {
             if (!domain) {
                 return new Response('缺少域名参数', { status: 400 });
             }
-            
+
+            const httpPortdoc = url.searchParams.get('httpport');
+           if (httpPortdoc) {
+              httpPort = httpPortdoc;
+            }
+            const httpsPortdoc = url.searchParams.get('httpsport');
+           if (httpsPortdoc) {
+              httpsPort = httpsPortdoc;
+            }
+
             // 从URL参数获取配置
             epd = url.searchParams.get('epd') !== 'no';
             epi = url.searchParams.get('epi') !== 'no';
