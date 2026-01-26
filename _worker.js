@@ -63,7 +63,7 @@ async function fetchDynamicIPs(ipv4Enabled = true, ipv6Enabled = true, ispMobile
 
         const [ipv4List, ipv6List] = await Promise.all(fetchPromises);
         results = [...ipv4List, ...ipv6List];
-        
+
         // 按运营商筛选
         if (results.length > 0) {
             results = results.filter(item => {
@@ -74,7 +74,7 @@ async function fetchDynamicIPs(ipv4Enabled = true, ipv6Enabled = true, ispMobile
                 return true;
             });
         }
-        
+
         return results.length > 0 ? results : [];
     } catch (e) {
         return [];
@@ -252,7 +252,7 @@ async function fetchAndParseNewIPs(piu) {
 }
 
 // 生成VLESS链接
-function generateLinksFromSource(list, user, workerDomain, disableNonTLS = false, customPath = '/') {
+function generateLinksFromSource(list, user, workerDomain, disableNonTLS = false, customPath = '/', forcePort = null) {
     const CF_HTTP_PORTS = [80, 8080, 8880, 2052, 2082, 2086, 2095];
     const CF_HTTPS_PORTS = [443, 2053, 2083, 2087, 2096, 8443];
     const defaultHttpsPorts = [443];
@@ -267,9 +267,9 @@ function generateLinksFromSource(list, user, workerDomain, disableNonTLS = false
             nodeNameBase = `${nodeNameBase}-${item.colo.trim()}`;
         }
         const safeIP = item.ip.includes(':') ? `[${item.ip}]` : item.ip;
-        
+
         let portsToGenerate = [];
-        
+
         if (item.port) {
             const port = item.port;
             if (CF_HTTPS_PORTS.includes(port)) {
@@ -289,20 +289,21 @@ function generateLinksFromSource(list, user, workerDomain, disableNonTLS = false
         }
 
         portsToGenerate.forEach(({ port, tls }) => {
+            const actualPort = forcePort ? parseInt(forcePort) : port;
             if (tls) {
-                const wsNodeName = `${nodeNameBase}-${port}-WS-TLS`;
-                const wsParams = new URLSearchParams({ 
-                    encryption: 'none', 
-                    security: 'tls', 
-                    sni: workerDomain, 
-                    fp: 'chrome', 
-                    type: 'ws', 
-                    host: workerDomain, 
+                const wsNodeName = `${nodeNameBase}-${actualPort}-WS-TLS`;
+                const wsParams = new URLSearchParams({
+                    encryption: 'none',
+                    security: 'tls',
+                    sni: workerDomain,
+                    fp: 'chrome',
+                    type: 'ws',
+                    host: workerDomain,
                     path: wsPath
                 });
-                links.push(`${proto}://${user}@${safeIP}:${port}?${wsParams.toString()}#${encodeURIComponent(wsNodeName)}`);
+                links.push(`${proto}://${user}@${safeIP}:${actualPort}?${wsParams.toString()}#${encodeURIComponent(wsNodeName)}`);
             } else {
-                const wsNodeName = `${nodeNameBase}-${port}-WS`;
+                const wsNodeName = `${nodeNameBase}-${actualPort}-WS`;
                 const wsParams = new URLSearchParams({
                     encryption: 'none',
                     security: 'none',
@@ -310,7 +311,7 @@ function generateLinksFromSource(list, user, workerDomain, disableNonTLS = false
                     host: workerDomain,
                     path: wsPath
                 });
-                links.push(`${proto}://${user}@${safeIP}:${port}?${wsParams.toString()}#${encodeURIComponent(wsNodeName)}`);
+                links.push(`${proto}://${user}@${safeIP}:${actualPort}?${wsParams.toString()}#${encodeURIComponent(wsNodeName)}`);
             }
         });
     });
@@ -318,7 +319,7 @@ function generateLinksFromSource(list, user, workerDomain, disableNonTLS = false
 }
 
 // 生成Trojan链接
-async function generateTrojanLinksFromSource(list, user, workerDomain, disableNonTLS = false, customPath = '/') {
+async function generateTrojanLinksFromSource(list, user, workerDomain, disableNonTLS = false, customPath = '/', forcePort = null) {
     const CF_HTTP_PORTS = [80, 8080, 8880, 2052, 2082, 2086, 2095];
     const CF_HTTPS_PORTS = [443, 2053, 2083, 2087, 2096, 8443];
     const defaultHttpsPorts = [443];
@@ -333,9 +334,9 @@ async function generateTrojanLinksFromSource(list, user, workerDomain, disableNo
             nodeNameBase = `${nodeNameBase}-${item.colo.trim()}`;
         }
         const safeIP = item.ip.includes(':') ? `[${item.ip}]` : item.ip;
-        
+
         let portsToGenerate = [];
-        
+
         if (item.port) {
             const port = item.port;
             if (CF_HTTPS_PORTS.includes(port)) {
@@ -357,26 +358,27 @@ async function generateTrojanLinksFromSource(list, user, workerDomain, disableNo
         }
 
         portsToGenerate.forEach(({ port, tls }) => {
+            const actualPort = forcePort ? parseInt(forcePort) : port;
             if (tls) {
-                const wsNodeName = `${nodeNameBase}-${port}-Trojan-WS-TLS`;
-                const wsParams = new URLSearchParams({ 
-                    security: 'tls', 
-                    sni: workerDomain, 
-                    fp: 'chrome', 
-                    type: 'ws', 
-                    host: workerDomain, 
+                const wsNodeName = `${nodeNameBase}-${actualPort}-Trojan-WS-TLS`;
+                const wsParams = new URLSearchParams({
+                    security: 'tls',
+                    sni: workerDomain,
+                    fp: 'chrome',
+                    type: 'ws',
+                    host: workerDomain,
                     path: wsPath
                 });
-                links.push(`trojan://${password}@${safeIP}:${port}?${wsParams.toString()}#${encodeURIComponent(wsNodeName)}`);
+                links.push(`trojan://${password}@${safeIP}:${actualPort}?${wsParams.toString()}#${encodeURIComponent(wsNodeName)}`);
             } else {
-                const wsNodeName = `${nodeNameBase}-${port}-Trojan-WS`;
+                const wsNodeName = `${nodeNameBase}-${actualPort}-Trojan-WS`;
                 const wsParams = new URLSearchParams({
                     security: 'none',
                     type: 'ws',
                     host: workerDomain,
                     path: wsPath
                 });
-                links.push(`trojan://${password}@${safeIP}:${port}?${wsParams.toString()}#${encodeURIComponent(wsNodeName)}`);
+                links.push(`trojan://${password}@${safeIP}:${actualPort}?${wsParams.toString()}#${encodeURIComponent(wsNodeName)}`);
             }
         });
     });
@@ -384,7 +386,7 @@ async function generateTrojanLinksFromSource(list, user, workerDomain, disableNo
 }
 
 // 生成VMess链接 (已修复中文名导致1101报错的问题)
-function generateVMessLinksFromSource(list, user, workerDomain, disableNonTLS = false, customPath = '/') {
+function generateVMessLinksFromSource(list, user, workerDomain, disableNonTLS = false, customPath = '/', forcePort = null) {
     const CF_HTTP_PORTS = [80, 8080, 8880, 2052, 2082, 2086, 2095];
     const CF_HTTPS_PORTS = [443, 2053, 2083, 2087, 2096, 8443];
     const defaultHttpsPorts = [443];
@@ -398,9 +400,9 @@ function generateVMessLinksFromSource(list, user, workerDomain, disableNonTLS = 
             nodeNameBase = `${nodeNameBase}-${item.colo.trim()}`;
         }
         const safeIP = item.ip.includes(':') ? `[${item.ip}]` : item.ip;
-        
+
         let portsToGenerate = [];
-        
+
         if (item.port) {
             const port = item.port;
             if (CF_HTTPS_PORTS.includes(port)) {
@@ -422,11 +424,12 @@ function generateVMessLinksFromSource(list, user, workerDomain, disableNonTLS = 
         }
 
         portsToGenerate.forEach(({ port, tls }) => {
+            const actualPort = forcePort ? parseInt(forcePort) : port;
             const vmessConfig = {
                 v: "2",
-                ps: tls ? `${nodeNameBase}-${port}-VMess-WS-TLS` : `${nodeNameBase}-${port}-VMess-WS`,
+                ps: tls ? `${nodeNameBase}-${actualPort}-VMess-WS-TLS` : `${nodeNameBase}-${actualPort}-VMess-WS`,
                 add: safeIP,
-                port: port.toString(),
+                port: actualPort.toString(),
                 id: user,
                 aid: "0",
                 scy: "auto",
@@ -440,14 +443,14 @@ function generateVMessLinksFromSource(list, user, workerDomain, disableNonTLS = 
                 vmessConfig.sni = workerDomain;
                 vmessConfig.fp = "chrome";
             }
-            
+
             // 核心修复：处理中文编码，防止 btoa 报错
             const jsonStr = JSON.stringify(vmessConfig);
             const vmessBase64 = btoa(encodeURIComponent(jsonStr).replace(/%([0-9A-F]{2})/g,
                 function toSolidBytes(match, p1) {
                     return String.fromCharCode('0x' + p1);
-            }));
-            
+                }));
+
             links.push(`vmess://${vmessBase64}`);
         });
     });
@@ -455,18 +458,18 @@ function generateVMessLinksFromSource(list, user, workerDomain, disableNonTLS = 
 }
 
 // 从GitHub IP生成链接（VLESS）
-function generateLinksFromNewIPs(list, user, workerDomain, customPath = '/') {
+function generateLinksFromNewIPs(list, user, workerDomain, customPath = '/', forcePort = null) {
     const CF_HTTP_PORTS = [80, 8080, 8880, 2052, 2082, 2086, 2095];
     const CF_HTTPS_PORTS = [443, 2053, 2083, 2087, 2096, 8443];
     const links = [];
     const wsPath = customPath || '/';
     const proto = 'vless';
-    
+
     list.forEach(item => {
         const nodeName = item.name.replace(/\s/g, '_');
-        const port = item.port;
-        
-        if (CF_HTTPS_PORTS.includes(port)) {
+        const port = forcePort ? parseInt(forcePort) : item.port;
+
+        if (CF_HTTPS_PORTS.includes(port) || (forcePort && port !== 80)) {
             const wsNodeName = `${nodeName}-${port}-WS-TLS`;
             const link = `${proto}://${user}@${item.ip}:${port}?encryption=none&security=tls&sni=${workerDomain}&fp=chrome&type=ws&host=${workerDomain}&path=${wsPath}#${encodeURIComponent(wsNodeName)}`;
             links.push(link);
@@ -484,7 +487,7 @@ function generateLinksFromNewIPs(list, user, workerDomain, customPath = '/') {
 }
 
 // 生成订阅内容
-async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4Enabled, ipv6Enabled, ispMobile, ispUnicom, ispTelecom, evEnabled, etEnabled, vmEnabled, disableNonTLS, customPath) {
+async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4Enabled, ipv6Enabled, ispMobile, ispUnicom, ispTelecom, evEnabled, etEnabled, vmEnabled, disableNonTLS, customPath, forcePort = null) {
     const url = new URL(request.url);
     const finalLinks = [];
     const workerDomain = url.hostname;  // workerDomain始终是请求的hostname
@@ -496,15 +499,15 @@ async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4E
         // 确保至少有一个协议被启用
         const hasProtocol = evEnabled || etEnabled || vmEnabled;
         const useVL = hasProtocol ? evEnabled : true;  // 如果没有选择任何协议，默认使用VLESS
-        
+
         if (useVL) {
-            finalLinks.push(...generateLinksFromSource(list, user, nodeDomain, disableNonTLS, wsPath));
+            finalLinks.push(...generateLinksFromSource(list, user, nodeDomain, disableNonTLS, wsPath, forcePort));
         }
         if (etEnabled) {
-            finalLinks.push(...await generateTrojanLinksFromSource(list, user, nodeDomain, disableNonTLS, wsPath));
+            finalLinks.push(...await generateTrojanLinksFromSource(list, user, nodeDomain, disableNonTLS, wsPath, forcePort));
         }
         if (vmEnabled) {
-            finalLinks.push(...generateVMessLinksFromSource(list, user, nodeDomain, disableNonTLS, wsPath));
+            finalLinks.push(...generateVMessLinksFromSource(list, user, nodeDomain, disableNonTLS, wsPath, forcePort));
         }
     }
 
@@ -556,11 +559,11 @@ async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4E
                         }
                         return null;
                     }).filter(item => item !== null);
-                    
+
                     if (IP列表.length > 0) {
                         const hasProtocol = evEnabled || etEnabled || vmEnabled;
                         const useVL = hasProtocol ? evEnabled : true;
-                        
+
                         if (useVL) {
                             finalLinks.push(...generateLinksFromNewIPs(IP列表, user, nodeDomain, wsPath));
                         }
@@ -570,7 +573,7 @@ async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4E
                 // 支持多行文本，包含混合格式（优选API URL + IP列表）
                 const 完整优选列表 = await 整理成数组(piu);
                 const 优选API = [], 优选IP = [], 其他节点 = [];
-                
+
                 for (const 元素 of 完整优选列表) {
                     if (元素.toLowerCase().startsWith('https://')) {
                         优选API.push(元素);
@@ -580,13 +583,13 @@ async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4E
                         优选IP.push(元素);
                     }
                 }
-                
+
                 // 从优选API获取IP
                 if (优选API.length > 0) {
                     const 优选API的IP = await 请求优选API(优选API);
                     优选IP.push(...优选API的IP);
                 }
-                
+
                 // 解析所有IP并生成节点
                 if (优选IP.length > 0) {
                     const IP列表 = 优选IP.map(原始地址 => {
@@ -605,13 +608,13 @@ async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4E
                         }
                         return null;
                     }).filter(item => item !== null);
-                    
+
                     if (IP列表.length > 0) {
                         const hasProtocol = evEnabled || etEnabled || vmEnabled;
                         const useVL = hasProtocol ? evEnabled : true;
-                        
+
                         if (useVL) {
-                            finalLinks.push(...generateLinksFromNewIPs(IP列表, user, nodeDomain, wsPath));
+                            finalLinks.push(...generateLinksFromNewIPs(IP列表, user, nodeDomain, wsPath, forcePort));
                         }
                     }
                 }
@@ -621,9 +624,9 @@ async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4E
                 if (newIPList.length > 0) {
                     const hasProtocol = evEnabled || etEnabled || vmEnabled;
                     const useVL = hasProtocol ? evEnabled : true;
-                    
+
                     if (useVL) {
-                        finalLinks.push(...generateLinksFromNewIPs(newIPList, user, nodeDomain, wsPath));
+                        finalLinks.push(...generateLinksFromNewIPs(newIPList, user, nodeDomain, wsPath, forcePort));
                     }
                 }
             }
@@ -640,7 +643,7 @@ async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4E
 
     let subscriptionContent;
     let contentType = 'text/plain; charset=utf-8';
-    
+
     switch (target.toLowerCase()) {
         case 'clash':
         case 'clashr':
@@ -660,9 +663,9 @@ async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4E
         default:
             subscriptionContent = btoa(finalLinks.join('\n'));
     }
-    
+
     return new Response(subscriptionContent, {
-        headers: { 
+        headers: {
             'Content-Type': contentType,
             'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
         },
@@ -677,7 +680,7 @@ function generateClashConfig(links) {
     yaml += 'mode: rule\n';
     yaml += 'log-level: info\n\n';
     yaml += 'proxies:\n';
-    
+
     const proxyNames = [];
     links.forEach((link, index) => {
         const name = decodeURIComponent(link.split('#')[1] || `节点${index + 1}`);
@@ -689,7 +692,7 @@ function generateClashConfig(links) {
         const path = link.match(/path=([^&#]+)/)?.[1] || '/';
         const host = link.match(/host=([^&#]+)/)?.[1] || '';
         const sni = link.match(/sni=([^&#]+)/)?.[1] || '';
-        
+
         yaml += `  - name: ${name}\n`;
         yaml += `    type: vless\n`;
         yaml += `    server: ${server}\n`;
@@ -705,7 +708,7 @@ function generateClashConfig(links) {
             yaml += `    servername: ${sni}\n`;
         }
     });
-    
+
     yaml += '\nproxy-groups:\n';
     yaml += '  - name: PROXY\n';
     yaml += '    type: select\n';
@@ -715,7 +718,7 @@ function generateClashConfig(links) {
     yaml += '  - IP-CIDR,127.0.0.0/8,DIRECT\n';
     yaml += '  - GEOIP,CN,DIRECT\n';
     yaml += '  - MATCH,PROXY\n';
-    
+
     return yaml;
 }
 
@@ -1079,6 +1082,52 @@ function generateHomePage(scuValue) {
             z-index: 1;
         }
         
+        .info-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 16px;
+            height: 16px;
+            margin-right: 6px;
+            background: rgba(0, 122, 255, 0.15);
+            color: #007AFF;
+            border-radius: 50%;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: help;
+            position: relative;
+        }
+        
+        .info-icon:hover::after {
+            content: attr(data-tip);
+            position: absolute;
+            left: 50%;
+            bottom: calc(100% + 8px);
+            transform: translateX(-50%);
+            padding: 8px 12px;
+            background: rgba(28, 28, 30, 0.95);
+            color: #ffffff;
+            font-size: 13px;
+            font-weight: 400;
+            white-space: nowrap;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            pointer-events: none;
+        }
+        
+        .info-icon:hover::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            bottom: calc(100% + 2px);
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+            border-top-color: rgba(28, 28, 30, 0.95);
+            z-index: 1000;
+            pointer-events: none;
+        }
+        
         @media (max-width: 480px) {
             .client-btn {
                 font-size: 12px;
@@ -1314,6 +1363,15 @@ function generateHomePage(scuValue) {
                 </div>
                 <div class="switch" id="switchTLS"></div>
             </div>
+            
+            <div class="form-group" style="margin-top: 20px;">
+                <label>
+                    <span class="info-icon" data-tip="指定一个端口，强制覆盖解析结果中的端口，留空默认使用原始端口">i</span>
+                    指定强制覆盖端口
+                </label>
+                <input type="number" id="forcePort" placeholder="留空则使用原始端口" min="1" max="65535">
+                <small>填入端口后，所有节点将强制使用该端口，留空则使用原始端口</small>
+            </div>
         </div>
         
         <div class="footer">
@@ -1344,7 +1402,7 @@ function generateHomePage(scuValue) {
         
         
         // 订阅转换地址（从服务器注入）
-        const SUB_CONVERTER_URL = "${ scu }";
+        const SUB_CONVERTER_URL = "${scu}";
         
         function tryOpenApp(schemeUrl, fallbackCallback, timeout) {
             timeout = timeout || 2500;
@@ -1395,6 +1453,7 @@ function generateHomePage(scuValue) {
             const domain = document.getElementById('domain').value.trim();
             const uuid = document.getElementById('uuid').value.trim();
             const customPath = document.getElementById('customPath').value.trim() || '/';
+            const forcePort = document.getElementById('forcePort').value.trim();
             
             if (!domain || !uuid) {
                 alert('请先填写域名和UUID/Password');
@@ -1438,9 +1497,14 @@ function generateHomePage(scuValue) {
             // 添加TLS控制
             if (switches.switchTLS) subscriptionUrl += '&dkby=yes';
             
+            // 添加强制覆盖端口
+            if (forcePort && parseInt(forcePort) > 0 && parseInt(forcePort) <= 65535) {
+                subscriptionUrl += '&forcePort=' + encodeURIComponent(forcePort);
+            }
+            
             // 添加自定义路径
             if (customPath && customPath !== '/') {
-                subscriptionUrl += \`&path=\${encodeURIComponent(customPath)}\`;
+                subscriptionUrl += '&path=' + encodeURIComponent(customPath);
             }
             
             let finalUrl = subscriptionUrl;
@@ -1532,7 +1596,7 @@ export default {
     async fetch(request, env, ctx) {
         const url = new URL(request.url);
         const path = url.pathname;
-        
+
         // 主页
         if (path === '/' || path === '') {
             const scuValue = env?.scu || scu;
@@ -1540,7 +1604,7 @@ export default {
                 headers: { 'Content-Type': 'text/html; charset=utf-8' }
             });
         }
-        
+
         // 测试优选API API: /test-optimize-api?url=xxx&port=443
         if (path === '/test-optimize-api') {
             if (request.method === 'OPTIONS') {
@@ -1552,90 +1616,94 @@ export default {
                     }
                 });
             }
-            
+
             const apiUrl = url.searchParams.get('url');
             const port = url.searchParams.get('port') || '443';
             const timeout = parseInt(url.searchParams.get('timeout') || '3000');
-            
+
             if (!apiUrl) {
-                return new Response(JSON.stringify({ 
-                    success: false, 
-                    error: '缺少url参数' 
+                return new Response(JSON.stringify({
+                    success: false,
+                    error: '缺少url参数'
                 }), {
                     status: 400,
-                    headers: { 
+                    headers: {
                         'Content-Type': 'application/json; charset=utf-8',
                         'Access-Control-Allow-Origin': '*'
                     }
                 });
             }
-            
+
             try {
                 const results = await 请求优选API([apiUrl], port, timeout);
-                return new Response(JSON.stringify({ 
-                    success: true, 
+                return new Response(JSON.stringify({
+                    success: true,
                     results: results,
                     total: results.length,
                     message: `成功获取 ${results.length} 个优选IP`
                 }, null, 2), {
-                    headers: { 
+                    headers: {
                         'Content-Type': 'application/json; charset=utf-8',
                         'Access-Control-Allow-Origin': '*'
                     }
                 });
             } catch (error) {
-                return new Response(JSON.stringify({ 
-                    success: false, 
-                    error: error.message 
+                return new Response(JSON.stringify({
+                    success: false,
+                    error: error.message
                 }), {
                     status: 500,
-                    headers: { 
+                    headers: {
                         'Content-Type': 'application/json; charset=utf-8',
                         'Access-Control-Allow-Origin': '*'
                     }
                 });
             }
         }
-        
+
         // 订阅请求格式: /{UUID或Password}/sub?domain=xxx&epd=yes&epi=yes&egi=yes
         const pathMatch = path.match(/^\/([^\/]+)\/sub$/);
         if (pathMatch) {
             const uuid = pathMatch[1];
-            
+
             const domain = url.searchParams.get('domain');
             if (!domain) {
                 return new Response('缺少域名参数', { status: 400 });
             }
-            
+
             // 从URL参数获取配置
             epd = url.searchParams.get('epd') !== 'no';
             epi = url.searchParams.get('epi') !== 'no';
             egi = url.searchParams.get('egi') !== 'no';
             const piu = url.searchParams.get('piu') || defaultIPURL;
-            
+
             // 协议选择
             const evEnabled = url.searchParams.get('ev') === 'yes' || (url.searchParams.get('ev') === null && ev);
             const etEnabled = url.searchParams.get('et') === 'yes';
             const vmEnabled = url.searchParams.get('mess') === 'yes';
-            
+
             // IPv4/IPv6选择
             const ipv4Enabled = url.searchParams.get('ipv4') !== 'no';
             const ipv6Enabled = url.searchParams.get('ipv6') !== 'no';
-            
+
             // 运营商选择
             const ispMobile = url.searchParams.get('ispMobile') !== 'no';
             const ispUnicom = url.searchParams.get('ispUnicom') !== 'no';
             const ispTelecom = url.searchParams.get('ispTelecom') !== 'no';
-            
+
             // TLS控制
             const disableNonTLS = url.searchParams.get('dkby') === 'yes';
-            
+
+            // 强制覆盖端口
+            const forcePortParam = url.searchParams.get('forcePort');
+            const forcePort = forcePortParam && parseInt(forcePortParam) > 0 && parseInt(forcePortParam) <= 65535 ? parseInt(forcePortParam) : null;
+
             // 自定义路径
             const customPath = url.searchParams.get('path') || '/';
-            
-            return await handleSubscriptionRequest(request, uuid, domain, piu, ipv4Enabled, ipv6Enabled, ispMobile, ispUnicom, ispTelecom, evEnabled, etEnabled, vmEnabled, disableNonTLS, customPath);
+
+            return await handleSubscriptionRequest(request, uuid, domain, piu, ipv4Enabled, ipv6Enabled, ispMobile, ispUnicom, ispTelecom, evEnabled, etEnabled, vmEnabled, disableNonTLS, customPath, forcePort);
         }
-        
+
         return new Response('Not Found', { status: 404 });
     }
 };
