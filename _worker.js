@@ -565,7 +565,7 @@ async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4E
                         const useVL = hasProtocol ? evEnabled : true;
 
                         if (useVL) {
-                            finalLinks.push(...generateLinksFromNewIPs(IP列表, user, nodeDomain, wsPath));
+                            finalLinks.push(...generateLinksFromNewIPs(IP列表, user, nodeDomain, wsPath, forcePort));
                         }
                     }
                 }
