@@ -11,6 +11,8 @@ let egi = true;  // 启用GitHub优选
 let ev = true;   // 启用VLESS协议
 let et = false;  // 启用Trojan协议
 let vm = false;  // 启用VMess协议
+let httpPort = 80;
+let httpsPort = 443;
 let scu = 'https://url.v1.mk/sub';  // 订阅转换地址
 // ECH (Encrypted Client Hello)
 let enableECH = false;
@@ -259,8 +261,8 @@ async function fetchAndParseNewIPs(piu) {
 function generateLinksFromSource(list, user, workerDomain, disableNonTLS = false, customPath = '/', echConfig = null) {
     const CF_HTTP_PORTS = [80, 8080, 8880, 2052, 2082, 2086, 2095];
     const CF_HTTPS_PORTS = [443, 2053, 2083, 2087, 2096, 8443];
-    const defaultHttpsPorts = [443];
-    const defaultHttpPorts = disableNonTLS ? [] : [80];
+    const defaultHttpsPorts = [httpsPort];
+    const defaultHttpPorts = disableNonTLS ? [] : [httpPort];
     const links = [];
     const wsPath = customPath || '/';
     const proto = 'vless';
@@ -329,8 +331,8 @@ function generateLinksFromSource(list, user, workerDomain, disableNonTLS = false
 async function generateTrojanLinksFromSource(list, user, workerDomain, disableNonTLS = false, customPath = '/', echConfig = null) {
     const CF_HTTP_PORTS = [80, 8080, 8880, 2052, 2082, 2086, 2095];
     const CF_HTTPS_PORTS = [443, 2053, 2083, 2087, 2096, 8443];
-    const defaultHttpsPorts = [443];
-    const defaultHttpPorts = disableNonTLS ? [] : [80];
+    const defaultHttpsPorts = [httpsPort];
+    const defaultHttpPorts = disableNonTLS ? [] : [httpPort];
     const links = [];
     const wsPath = customPath || '/';
     const password = user;  // Trojan使用UUID作为密码
@@ -399,8 +401,8 @@ async function generateTrojanLinksFromSource(list, user, workerDomain, disableNo
 function generateVMessLinksFromSource(list, user, workerDomain, disableNonTLS = false, customPath = '/', echConfig = null) {
     const CF_HTTP_PORTS = [80, 8080, 8880, 2052, 2082, 2086, 2095];
     const CF_HTTPS_PORTS = [443, 2053, 2083, 2087, 2096, 8443];
-    const defaultHttpsPorts = [443];
-    const defaultHttpPorts = disableNonTLS ? [] : [80];
+    const defaultHttpsPorts = [httpsPort];
+    const defaultHttpPorts = disableNonTLS ? [] : [httpPort];
     const links = [];
     const wsPath = customPath || '/';
 
@@ -1222,6 +1224,15 @@ function generateHomePage(scuValue) {
             </div>
             
             <div class="form-group">
+                <label>HTTPS端口</label>
+                <input type="text" id="httpsPort" placeholder="请输入HTTPS端口">
+            </div>
+            <div class="form-group">
+                <label>HTTP端口</label>
+                <input type="text" id="httpPort" placeholder="请输入HTTP端口">
+            </div>
+            
+            <div class="form-group">
                 <label>WebSocket路径（可选）</label>
                 <input type="text" id="customPath" placeholder="留空则使用默认路径 /" value="/">
                 <small style="display: block; margin-top: 6px; color: #86868b; font-size: 13px;">自定义WebSocket路径，例如：/v2ray 或 /</small>
@@ -1441,6 +1452,7 @@ function generateHomePage(scuValue) {
             const uuid = document.getElementById('uuid').value.trim();
             const customPath = document.getElementById('customPath').value.trim() || '/';
             
+            
             if (!domain || !uuid) {
                 alert('请先填写域名和UUID/Password');
                 return;
@@ -1452,6 +1464,14 @@ function generateHomePage(scuValue) {
                 return;
             }
             
+            const httpPortdoc = document.getElementById('httpPort').value.trim();
+           if (httpPortdoc) {
+              httpPort = httpPortdoc;
+            }
+            const httpsPortdoc = document.getElementById('httpsPort').value.trim();
+           if (httpsPortdoc) {
+              httpsPort = httpsPortdoc;
+            }
             const ipv4Enabled = document.getElementById('ipv4Enabled').checked;
             const ipv6Enabled = document.getElementById('ipv6Enabled').checked;
             const ispMobile = document.getElementById('ispMobile').checked;
@@ -1462,8 +1482,9 @@ function generateHomePage(scuValue) {
             
             const currentUrl = new URL(window.location.href);
             const baseUrl = currentUrl.origin;
-            let subscriptionUrl = \`\${baseUrl}/\${uuid}/sub?domain=\${encodeURIComponent(domain)}&epd=\${switches.switchDomain ? 'yes' : 'no'}&epi=\${switches.switchIP ? 'yes' : 'no'}&egi=\${switches.switchGitHub ? 'yes' : 'no'}\`;
-            
+           // let subscriptionUrl = \`\${baseUrl}/\${uuid}/sub?domain=\${encodeURIComponent(domain)}&epd=\${switches.switchDomain ? 'yes' : 'no'}&epi=\${switches.switchIP ? 'yes' : 'no'}&egi=\${switches.switchGitHub ? 'yes' : 'no'}\`;
+           // 修改后的拼接方式
+           let subscriptionUrl = \`\${baseUrl}/\${uuid}/sub?domain=\${encodeURIComponent(domain)}&epd=\${switches.switchDomain ? 'yes' : 'no'}&epi=\${switches.switchIP ? 'yes' : 'no'}&egi=\${switches.switchGitHub ? 'yes' : 'no'}&httpport=\${encodeURIComponent(httpPortdoc)}&httpsport=\${encodeURIComponent(httpsPortdoc)}\`; 
             // 添加GitHub优选URL
             if (githubUrl) {
                 subscriptionUrl += \`&piu=\${encodeURIComponent(githubUrl)}\`;
@@ -1584,7 +1605,8 @@ export default {
     async fetch(request, env, ctx) {
         const url = new URL(request.url);
         const path = url.pathname;
-        
+        httpPort = (env.httpPort || env.HTTPPOST || httpPort).toLowerCase();
+        httpsPort = (env.httpsPort || env.HTTPSPORT || https).toLowerCase();
         // 主页
         if (path === '/' || path === '') {
             const scuValue = env?.scu || scu;
@@ -1658,7 +1680,16 @@ export default {
             if (!domain) {
                 return new Response('缺少域名参数', { status: 400 });
             }
-            
+
+            const httpPortdoc = url.searchParams.get('httpport');
+           if (httpPortdoc) {
+              httpPort = httpPortdoc;
+            }
+            const httpsPortdoc = url.searchParams.get('httpsport');
+           if (httpsPortdoc) {
+              httpsPort = httpsPortdoc;
+            }
+
             // 从URL参数获取配置
             epd = url.searchParams.get('epd') !== 'no';
             epi = url.searchParams.get('epi') !== 'no';
