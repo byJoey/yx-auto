@@ -1,0 +1,4 @@
+name = "yx-auto"
+main = "_worker.js"
+type = "javascript"
+compatibility_date = "2026-03-15"
