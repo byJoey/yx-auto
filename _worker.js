@@ -657,7 +657,7 @@ async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4E
     switch (target.toLowerCase()) {
         case 'clash':
         case 'clashr':
-            subscriptionContent = generateClashConfig(finalLinks);
+            subscriptionContent = await generateClashConfig(finalLinks);
             contentType = 'text/yaml; charset=utf-8';
             break;
         case 'surge':
@@ -682,14 +682,207 @@ async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4E
     });
 }
 
-// 生成Clash配置（简化版，返回YAML格式）
-function generateClashConfig(links) {
-    let yaml = 'port: 7890\n';
-    yaml += 'socks-port: 7891\n';
-    yaml += 'allow-lan: false\n';
-    yaml += 'mode: rule\n';
-    yaml += 'log-level: info\n\n';
-    yaml += 'proxies:\n';
+// 规则集配置
+const RULE_PROVIDERS = {
+    // 广告拦截规则
+    ads: {
+        name: 'reject',
+        type: 'http',
+        behavior: 'domain',
+        url: 'https://rules.xkww3n.cyou/lists/reject.txt',
+        path: './rule-providers/reject.yaml',
+        interval: 3600  // 每1小时更新一次
+    },
+    // 国内直连规则
+    private: {
+        name: 'private',
+        type: 'http',
+        behavior: 'domain',
+        url: 'https://rules.xkww3n.cyou/lists/private.txt',
+        path: './rule-providers/private.yaml',
+        interval: 3600
+    },
+    // GeoIP 归属地规则
+    geoip: {
+        name: 'geoip',
+        type: 'http',
+        behavior: 'ipcidr',
+        url: 'https://rules.xkww3n.cyou/lists/geoip.txt',
+        path: './rule-providers/geoip.yaml',
+        interval: 3600
+    },
+    // Telegram 规则
+    telegram: {
+        name: 'telegram',
+        type: 'http',
+        behavior: 'ipcidr',
+        url: 'https://rules.xkww3n.cyou/lists/telegram.txt',
+        path: './rule-providers/telegram.yaml',
+        interval: 3600
+    },
+    // Netflix 规则
+    netflix: {
+        name: 'netflix',
+        type: 'http',
+        behavior: 'domain',
+        url: 'https://rules.xkww3n.cyou/lists/netflix.txt',
+        path: './rule-providers/netflix.yaml',
+        interval: 3600
+    },
+    // Disney+ 规则
+    disney: {
+        name: 'disney',
+        type: 'http',
+        behavior: 'domain',
+        url: 'https://rules.xkww3n.cyou/lists/disney.txt',
+        path: './rule-providers/disney.yaml',
+        interval: 3600
+    },
+    // YouTube 规则
+    youtube: {
+        name: 'youtube',
+        type: 'http',
+        behavior: 'domain',
+        url: 'https://rules.xkww3n.cyou/lists/youtube.txt',
+        path: './rule-providers/youtube.yaml',
+        interval: 3600
+    },
+    // TikTok 规则
+    tiktok: {
+        name: 'tiktok',
+        type: 'http',
+        behavior: 'domain',
+        url: 'https://rules.xkww3n.cyou/lists/tiktok.txt',
+        path: './rule-providers/tiktok.yaml',
+        interval: 3600
+    },
+    // ChatGPT 规则
+    chatgpt: {
+        name: 'chatgpt',
+        type: 'http',
+        behavior: 'domain',
+        url: 'https://rules.xkww3n.cyou/lists/chatgpt.txt',
+        path: './rule-providers/chatgpt.yaml',
+        interval: 3600
+    },
+    // 游戏规则
+    gaming: {
+        name: 'gaming',
+        type: 'http',
+        behavior: 'domain',
+        url: 'https://rules.xkww3n.cyou/lists/gaming.txt',
+        path: './rule-providers/gaming.yaml',
+        interval: 3600
+    },
+    // 国外代理规则
+    foreign: {
+        name: 'foreign',
+        type: 'http',
+        behavior: 'domain',
+        url: 'https://rules.xkww3n.cyou/lists/foreign.txt',
+        path: './rule-providers/foreign.yaml',
+        interval: 3600
+    },
+    // 国内规则
+    china: {
+        name: 'china',
+        type: 'http',
+        behavior: 'domain',
+        url: 'https://rules.xkww3n.cyou/lists/china.txt',
+        path: './rule-providers/china.yaml',
+        interval: 3600
+    }
+};
+
+// 生成 rule-providers 配置
+function generateRuleProviders() {
+    let config = '';
+    for (const [key, rule] of Object.entries(RULE_PROVIDERS)) {
+        config += `  ${key}:
+`;
+        config += `    type: ${rule.type}
+`;
+        config += `    behavior: ${rule.behavior}
+`;
+        config += `    url: "${rule.url}"
+`;
+        config += `    path: "${rule.path}"
+`;
+        config += `    interval: ${rule.interval}
+`;
+    }
+    return config;
+}
+
+// 生成规则列表
+function generateRules() {
+    return [
+        'RULE-SET,reject,REJECT',
+        'RULE-SET,private,DIRECT',
+        'DOMAIN,clash.razord.top,DIRECT',
+        'DOMAIN,yacd.haishan.me,DIRECT',
+        'DOMAIN-SUFFIX,local,DIRECT',
+        'IP-CIDR,127.0.0.0/8,DIRECT',
+        'IP-CIDR,172.16.0.0/12,DIRECT',
+        'IP-CIDR,192.168.0.0/16,DIRECT',
+        'IP-CIDR,10.0.0.0/8,DIRECT',
+        'RULE-SET,china,DIRECT',
+        'RULE-SET,geoip,DIRECT',
+        'RULE-SET,telegram,PROXY',
+        'RULE-SET,netflix,PROXY',
+        'RULE-SET,disney,PROXY',
+        'RULE-SET,youtube,PROXY',
+        'RULE-SET,tiktok,PROXY',
+        'RULE-SET,chatgpt,PROXY',
+        'RULE-SET,gaming,PROXY',
+        'RULE-SET,foreign,PROXY',
+        'GEOIP,CN,DIRECT',
+        'MATCH,PROXY'
+    ];
+}
+
+// 生成Clash配置（带完整规则集）
+async function generateClashConfig(links) {
+    const ruleProvidersConfig = generateRuleProviders();
+    const rulesConfig = generateRules().map(rule => `  - ${rule}`).join('\n');
+    
+    let yaml = `port: 7890
+socks-port: 7891
+allow-lan: false
+mode: rule
+log-level: info
+external-controller: 0.0.0.0:9090
+
+dns:
+  enable: true
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  nameserver:
+    - 223.5.5.5
+    - 119.29.29.29
+  fallback:
+    - 8.8.8.8
+    - 1.1.1.1
+  fallback-filter:
+    geoip: true
+    geoip-code: CN
+
+proxies:
+proxy-providers:
+  all:
+    type: http
+    url: "adapter:all"
+    interval: 3600
+    path: ./proxies/all.yaml
+    health-check:
+      enable: true
+      interval: 600
+      url: http://www.gstatic.com/generate_204
+
+rule-providers:
+${ruleProvidersConfig}
+
+`;
     
     const proxyNames = [];
     links.forEach((link, index) => {
@@ -705,36 +898,140 @@ function generateClashConfig(links) {
         const echParam = link.match(/[?&]ech=([^&#]+)/)?.[1];
         const echDomain = echParam ? decodeURIComponent(echParam).split('+')[0] : '';
         
-        yaml += `  - name: ${name}\n`;
-        yaml += `    type: vless\n`;
-        yaml += `    server: ${server}\n`;
-        yaml += `    port: ${port}\n`;
-        yaml += `    uuid: ${uuid}\n`;
-        yaml += `    tls: ${tls}\n`;
-        yaml += `    network: ws\n`;
-        yaml += `    ws-opts:\n`;
-        yaml += `      path: ${path}\n`;
-        yaml += `      headers:\n`;
-        yaml += `        Host: ${host}\n`;
+        yaml += `  - name: "${name}"
+    type: vless
+    server: ${server}
+    port: ${port}
+    uuid: ${uuid}
+    tls: ${tls}
+    network: ws
+    ws-opts:
+      path: ${path}
+      headers:
+        Host: ${host}
+`;
         if (sni) {
             yaml += `    servername: ${sni}\n`;
         }
         if (echDomain) {
-            yaml += `    ech-opts:\n`;
-            yaml += `      enable: true\n`;
-            yaml += `      query-server-name: ${echDomain}\n`;
+            yaml += `    ech-opts:
+      enable: true
+      query-server-name: ${echDomain}\n`;
         }
+        yaml += '\n';
     });
     
-    yaml += '\nproxy-groups:\n';
-    yaml += '  - name: PROXY\n';
-    yaml += '    type: select\n';
-    yaml += `    proxies: [${proxyNames.map(n => `'${n}'`).join(', ')}]\n`;
-    yaml += '\nrules:\n';
-    yaml += '  - DOMAIN-SUFFIX,local,DIRECT\n';
-    yaml += '  - IP-CIDR,127.0.0.0/8,DIRECT\n';
-    yaml += '  - GEOIP,CN,DIRECT\n';
-    yaml += '  - MATCH,PROXY\n';
+    yaml += `proxy-groups:
+  - name: auto
+    type: url-test
+    use:
+      - all
+    url: http://www.gstatic.com/generate_204
+    interval: 300
+    tolerance: 50
+    max-fallback: 3
+
+  - name: PROXY
+    type: select
+    use:
+      - all
+    proxies:
+      - "auto"
+      - DIRECT
+`;
+    proxyNames.forEach(n => {
+        yaml += `      - "${n}"\n`;
+    });
+    
+    yaml += `      - DIRECT
+
+  - name: Netflix
+    type: select
+    use:
+      - all
+    proxies:
+      - PROXY
+      - auto
+      - DIRECT
+
+  - name: YouTube
+    type: select
+    use:
+      - all
+    proxies:
+      - PROXY
+      - auto
+      - DIRECT
+
+  - name: TikTok
+    type: select
+    use:
+      - all
+    proxies:
+      - PROXY
+      - auto
+      - DIRECT
+
+  - name: ChatGPT
+    type: select
+    use:
+      - all
+    proxies:
+      - PROXY
+      - auto
+      - DIRECT
+
+  - name: Telegram
+    type: select
+    use:
+      - all
+    proxies:
+      - PROXY
+      - auto
+      - DIRECT
+
+  - name: Disney+
+    type: select
+    use:
+      - all
+    proxies:
+      - PROXY
+      - auto
+      - DIRECT
+
+  - name: Gaming
+    type: select
+    use:
+      - all
+    proxies:
+      - PROXY
+      - auto
+      - DIRECT
+
+  - name: AD
+    type: select
+    proxies:
+      - REJECT
+      - DIRECT
+
+  - name: GLOBAL
+    type: select
+    use:
+      - all
+    proxies:
+      - PROXY
+      - auto
+      - DIRECT
+
+  - name: DIRECT
+    type: select
+    proxies:
+      - DIRECT
+      - PROXY
+
+rules:
+${rulesConfig}
+`;
     
     return yaml;
 }
