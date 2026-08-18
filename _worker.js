@@ -255,14 +255,29 @@ async function fetchAndParseNewIPs(piu) {
     }
 }
 
+function normalizeTransport(transport) {
+    return transport === 'xhttp' ? 'xhttp' : 'ws';
+}
+
+function addTransportParams(params, transport, workerDomain, path) {
+    params.set('type', transport);
+    params.set('host', workerDomain);
+    params.set('path', path);
+    if (transport === 'xhttp') {
+        params.set('mode', 'auto');
+    }
+}
+
 // 生成VLESS链接
-function generateLinksFromSource(list, user, workerDomain, disableNonTLS = false, customPath = '/', echConfig = null) {
+function generateLinksFromSource(list, user, workerDomain, disableNonTLS = false, customPath = '/', echConfig = null, transport = 'ws') {
     const CF_HTTP_PORTS = [80, 8080, 8880, 2052, 2082, 2086, 2095];
     const CF_HTTPS_PORTS = [443, 2053, 2083, 2087, 2096, 8443];
     const defaultHttpsPorts = [443];
     const defaultHttpPorts = disableNonTLS ? [] : [80];
     const links = [];
-    const wsPath = customPath || '/';
+    const transportPath = customPath || '/';
+    transport = normalizeTransport(transport);
+    const transportName = transport === 'xhttp' ? 'XHTTP' : 'WS';
     const proto = 'vless';
 
     list.forEach(item => {
@@ -294,31 +309,27 @@ function generateLinksFromSource(list, user, workerDomain, disableNonTLS = false
 
         portsToGenerate.forEach(({ port, tls }) => {
             if (tls) {
-                const wsNodeName = `${nodeNameBase}-${port}-WS-TLS`;
-                const wsParams = new URLSearchParams({ 
+                const nodeName = `${nodeNameBase}-${port}-${transportName}-TLS`;
+                const params = new URLSearchParams({
                     encryption: 'none', 
                     security: 'tls', 
                     sni: workerDomain, 
-                    fp: 'chrome', 
-                    type: 'ws', 
-                    host: workerDomain, 
-                    path: wsPath
+                    fp: 'chrome'
                 });
+                addTransportParams(params, transport, workerDomain, transportPath);
                 if (echConfig) {
-                    wsParams.set('alpn', 'h3,h2,http/1.1');
-                    wsParams.set('ech', echConfig);
+                    params.set('alpn', 'h3,h2,http/1.1');
+                    params.set('ech', echConfig);
                 }
-                links.push(`${proto}://${user}@${safeIP}:${port}?${wsParams.toString()}#${encodeURIComponent(wsNodeName)}`);
+                links.push(`${proto}://${user}@${safeIP}:${port}?${params.toString()}#${encodeURIComponent(nodeName)}`);
             } else {
-                const wsNodeName = `${nodeNameBase}-${port}-WS`;
-                const wsParams = new URLSearchParams({
+                const nodeName = `${nodeNameBase}-${port}-${transportName}`;
+                const params = new URLSearchParams({
                     encryption: 'none',
-                    security: 'none',
-                    type: 'ws',
-                    host: workerDomain,
-                    path: wsPath
+                    security: 'none'
                 });
-                links.push(`${proto}://${user}@${safeIP}:${port}?${wsParams.toString()}#${encodeURIComponent(wsNodeName)}`);
+                addTransportParams(params, transport, workerDomain, transportPath);
+                links.push(`${proto}://${user}@${safeIP}:${port}?${params.toString()}#${encodeURIComponent(nodeName)}`);
             }
         });
     });
@@ -326,13 +337,15 @@ function generateLinksFromSource(list, user, workerDomain, disableNonTLS = false
 }
 
 // 生成Trojan链接
-async function generateTrojanLinksFromSource(list, user, workerDomain, disableNonTLS = false, customPath = '/', echConfig = null) {
+async function generateTrojanLinksFromSource(list, user, workerDomain, disableNonTLS = false, customPath = '/', echConfig = null, transport = 'ws') {
     const CF_HTTP_PORTS = [80, 8080, 8880, 2052, 2082, 2086, 2095];
     const CF_HTTPS_PORTS = [443, 2053, 2083, 2087, 2096, 8443];
     const defaultHttpsPorts = [443];
     const defaultHttpPorts = disableNonTLS ? [] : [80];
     const links = [];
-    const wsPath = customPath || '/';
+    const transportPath = customPath || '/';
+    transport = normalizeTransport(transport);
+    const transportName = transport === 'xhttp' ? 'XHTTP' : 'WS';
     const password = user;  // Trojan使用UUID作为密码
 
     list.forEach(item => {
@@ -366,29 +379,25 @@ async function generateTrojanLinksFromSource(list, user, workerDomain, disableNo
 
         portsToGenerate.forEach(({ port, tls }) => {
             if (tls) {
-                const wsNodeName = `${nodeNameBase}-${port}-Trojan-WS-TLS`;
-                const wsParams = new URLSearchParams({ 
+                const nodeName = `${nodeNameBase}-${port}-Trojan-${transportName}-TLS`;
+                const params = new URLSearchParams({
                     security: 'tls', 
                     sni: workerDomain, 
-                    fp: 'chrome', 
-                    type: 'ws', 
-                    host: workerDomain, 
-                    path: wsPath
+                    fp: 'chrome'
                 });
+                addTransportParams(params, transport, workerDomain, transportPath);
                 if (echConfig) {
-                    wsParams.set('alpn', 'h3,h2,http/1.1');
-                    wsParams.set('ech', echConfig);
+                    params.set('alpn', 'h3,h2,http/1.1');
+                    params.set('ech', echConfig);
                 }
-                links.push(`trojan://${password}@${safeIP}:${port}?${wsParams.toString()}#${encodeURIComponent(wsNodeName)}`);
+                links.push(`trojan://${password}@${safeIP}:${port}?${params.toString()}#${encodeURIComponent(nodeName)}`);
             } else {
-                const wsNodeName = `${nodeNameBase}-${port}-Trojan-WS`;
-                const wsParams = new URLSearchParams({
-                    security: 'none',
-                    type: 'ws',
-                    host: workerDomain,
-                    path: wsPath
+                const nodeName = `${nodeNameBase}-${port}-Trojan-${transportName}`;
+                const params = new URLSearchParams({
+                    security: 'none'
                 });
-                links.push(`trojan://${password}@${safeIP}:${port}?${wsParams.toString()}#${encodeURIComponent(wsNodeName)}`);
+                addTransportParams(params, transport, workerDomain, transportPath);
+                links.push(`trojan://${password}@${safeIP}:${port}?${params.toString()}#${encodeURIComponent(nodeName)}`);
             }
         });
     });
@@ -396,13 +405,15 @@ async function generateTrojanLinksFromSource(list, user, workerDomain, disableNo
 }
 
 // 生成VMess链接 (已修复中文名导致1101报错的问题)
-function generateVMessLinksFromSource(list, user, workerDomain, disableNonTLS = false, customPath = '/', echConfig = null) {
+function generateVMessLinksFromSource(list, user, workerDomain, disableNonTLS = false, customPath = '/', echConfig = null, transport = 'ws') {
     const CF_HTTP_PORTS = [80, 8080, 8880, 2052, 2082, 2086, 2095];
     const CF_HTTPS_PORTS = [443, 2053, 2083, 2087, 2096, 8443];
     const defaultHttpsPorts = [443];
     const defaultHttpPorts = disableNonTLS ? [] : [80];
     const links = [];
-    const wsPath = customPath || '/';
+    const transportPath = customPath || '/';
+    transport = normalizeTransport(transport);
+    const transportName = transport === 'xhttp' ? 'XHTTP' : 'WS';
 
     list.forEach(item => {
         let nodeNameBase = item.isp ? item.isp.replace(/\s/g, '_') : (item.name || item.domain || item.ip);
@@ -436,21 +447,24 @@ function generateVMessLinksFromSource(list, user, workerDomain, disableNonTLS = 
         portsToGenerate.forEach(({ port, tls }) => {
             const vmessConfig = {
                 v: "2",
-                ps: tls ? `${nodeNameBase}-${port}-VMess-WS-TLS` : `${nodeNameBase}-${port}-VMess-WS`,
+                ps: tls ? `${nodeNameBase}-${port}-VMess-${transportName}-TLS` : `${nodeNameBase}-${port}-VMess-${transportName}`,
                 add: safeIP,
                 port: port.toString(),
                 id: user,
                 aid: "0",
                 scy: "auto",
-                net: "ws",
+                net: transport,
                 type: "none",
                 host: workerDomain,
-                path: wsPath,
+                path: transportPath,
                 tls: tls ? "tls" : "none"
             };
             if (tls) {
                 vmessConfig.sni = workerDomain;
                 vmessConfig.fp = "chrome";
+            }
+            if (transport === 'xhttp') {
+                vmessConfig.mode = 'auto';
             }
             
             // 核心修复：处理中文编码，防止 btoa 报错
@@ -467,43 +481,58 @@ function generateVMessLinksFromSource(list, user, workerDomain, disableNonTLS = 
 }
 
 // 从GitHub IP生成链接（VLESS）
-function generateLinksFromNewIPs(list, user, workerDomain, customPath = '/', echConfig = null) {
+function generateLinksFromNewIPs(list, user, workerDomain, customPath = '/', echConfig = null, transport = 'ws') {
     const CF_HTTP_PORTS = [80, 8080, 8880, 2052, 2082, 2086, 2095];
     const CF_HTTPS_PORTS = [443, 2053, 2083, 2087, 2096, 8443];
     const links = [];
-    const wsPath = customPath || '/';
+    const transportPath = customPath || '/';
+    transport = normalizeTransport(transport);
+    const transportName = transport === 'xhttp' ? 'XHTTP' : 'WS';
     const proto = 'vless';
-    const echSuffix = echConfig ? `&alpn=h3%2Ch2%2Chttp%2F1.1&ech=${encodeURIComponent(echConfig)}` : '';
     
     list.forEach(item => {
         const nodeName = item.name.replace(/\s/g, '_');
         const port = item.port;
+        const safeIP = item.ip.includes(':') ? `[${item.ip}]` : item.ip;
+
+        const makeLink = (tls) => {
+            const params = new URLSearchParams({
+                encryption: 'none',
+                security: tls ? 'tls' : 'none'
+            });
+            if (tls) {
+                params.set('sni', workerDomain);
+                params.set('fp', 'chrome');
+            }
+            addTransportParams(params, transport, workerDomain, transportPath);
+            if (tls && echConfig) {
+                params.set('alpn', 'h3,h2,http/1.1');
+                params.set('ech', echConfig);
+            }
+            const suffix = tls ? `${transportName}-TLS` : transportName;
+            return `${proto}://${user}@${safeIP}:${port}?${params.toString()}#${encodeURIComponent(`${nodeName}-${port}-${suffix}`)}`;
+        };
         
         if (CF_HTTPS_PORTS.includes(port)) {
-            const wsNodeName = `${nodeName}-${port}-WS-TLS`;
-            const link = `${proto}://${user}@${item.ip}:${port}?encryption=none&security=tls&sni=${workerDomain}&fp=chrome&type=ws&host=${workerDomain}&path=${wsPath}${echSuffix}#${encodeURIComponent(wsNodeName)}`;
-            links.push(link);
+            links.push(makeLink(true));
         } else if (CF_HTTP_PORTS.includes(port)) {
-            const wsNodeName = `${nodeName}-${port}-WS`;
-            const link = `${proto}://${user}@${item.ip}:${port}?encryption=none&security=none&type=ws&host=${workerDomain}&path=${wsPath}#${encodeURIComponent(wsNodeName)}`;
-            links.push(link);
+            links.push(makeLink(false));
         } else {
-            const wsNodeName = `${nodeName}-${port}-WS-TLS`;
-            const link = `${proto}://${user}@${item.ip}:${port}?encryption=none&security=tls&sni=${workerDomain}&fp=chrome&type=ws&host=${workerDomain}&path=${wsPath}${echSuffix}#${encodeURIComponent(wsNodeName)}`;
-            links.push(link);
+            links.push(makeLink(true));
         }
     });
     return links;
 }
 
 // 生成订阅内容
-async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4Enabled, ipv6Enabled, ispMobile, ispUnicom, ispTelecom, evEnabled, etEnabled, vmEnabled, disableNonTLS, customPath, echConfig = null) {
+async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4Enabled, ipv6Enabled, ispMobile, ispUnicom, ispTelecom, evEnabled, etEnabled, vmEnabled, disableNonTLS, customPath, echConfig = null, transport = 'ws') {
     const url = new URL(request.url);
     const finalLinks = [];
     const workerDomain = url.hostname;  // workerDomain始终是请求的hostname
     const nodeDomain = customDomain || url.hostname;  // 用户输入的域名用于生成节点时的host/sni
     const target = url.searchParams.get('target') || 'base64';
-    const wsPath = customPath || '/';
+    const transportPath = customPath || '/';
+    transport = normalizeTransport(transport);
 
     async function addNodesFromList(list) {
         // 确保至少有一个协议被启用
@@ -511,13 +540,13 @@ async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4E
         const useVL = hasProtocol ? evEnabled : true;  // 如果没有选择任何协议，默认使用VLESS
         
         if (useVL) {
-            finalLinks.push(...generateLinksFromSource(list, user, nodeDomain, disableNonTLS, wsPath, echConfig));
+            finalLinks.push(...generateLinksFromSource(list, user, nodeDomain, disableNonTLS, transportPath, echConfig, transport));
         }
         if (etEnabled) {
-            finalLinks.push(...await generateTrojanLinksFromSource(list, user, nodeDomain, disableNonTLS, wsPath, echConfig));
+            finalLinks.push(...await generateTrojanLinksFromSource(list, user, nodeDomain, disableNonTLS, transportPath, echConfig, transport));
         }
         if (vmEnabled) {
-            finalLinks.push(...generateVMessLinksFromSource(list, user, nodeDomain, disableNonTLS, wsPath, echConfig));
+            finalLinks.push(...generateVMessLinksFromSource(list, user, nodeDomain, disableNonTLS, transportPath, echConfig, transport));
         }
     }
 
@@ -575,7 +604,7 @@ async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4E
                         const useVL = hasProtocol ? evEnabled : true;
                         
                         if (useVL) {
-                            finalLinks.push(...generateLinksFromNewIPs(IP列表, user, nodeDomain, wsPath, echConfig));
+                            finalLinks.push(...generateLinksFromNewIPs(IP列表, user, nodeDomain, transportPath, echConfig, transport));
                         }
                     }
                 }
@@ -624,7 +653,7 @@ async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4E
                         const useVL = hasProtocol ? evEnabled : true;
                         
                         if (useVL) {
-                            finalLinks.push(...generateLinksFromNewIPs(IP列表, user, nodeDomain, wsPath, echConfig));
+                            finalLinks.push(...generateLinksFromNewIPs(IP列表, user, nodeDomain, transportPath, echConfig, transport));
                         }
                     }
                 }
@@ -636,7 +665,7 @@ async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4E
                     const useVL = hasProtocol ? evEnabled : true;
                     
                     if (useVL) {
-                        finalLinks.push(...generateLinksFromNewIPs(newIPList, user, nodeDomain, wsPath, echConfig));
+                        finalLinks.push(...generateLinksFromNewIPs(newIPList, user, nodeDomain, transportPath, echConfig, transport));
                     }
                 }
             }
@@ -693,17 +722,19 @@ function generateClashConfig(links) {
     
     const proxyNames = [];
     links.forEach((link, index) => {
-        const name = decodeURIComponent(link.split('#')[1] || `节点${index + 1}`);
+        const parsed = new URL(link);
+        const name = decodeURIComponent(parsed.hash.slice(1) || `节点${index + 1}`);
         proxyNames.push(name);
-        const server = link.match(/@([^:]+):(\d+)/)?.[1] || '';
-        const port = link.match(/@[^:]+:(\d+)/)?.[1] || '443';
-        const uuid = link.match(/vless:\/\/([^@]+)@/)?.[1] || '';
-        const tls = link.includes('security=tls');
-        const path = link.match(/path=([^&#]+)/)?.[1] || '/';
-        const host = link.match(/host=([^&#]+)/)?.[1] || '';
-        const sni = link.match(/sni=([^&#]+)/)?.[1] || '';
-        const echParam = link.match(/[?&]ech=([^&#]+)/)?.[1];
-        const echDomain = echParam ? decodeURIComponent(echParam).split('+')[0] : '';
+        const server = parsed.hostname.replace(/^\[|\]$/g, '');
+        const port = parsed.port || '443';
+        const uuid = decodeURIComponent(parsed.username);
+        const tls = parsed.searchParams.get('security') === 'tls';
+        const path = parsed.searchParams.get('path') || '/';
+        const host = parsed.searchParams.get('host') || '';
+        const sni = parsed.searchParams.get('sni') || '';
+        const transport = normalizeTransport(parsed.searchParams.get('type'));
+        const echParam = parsed.searchParams.get('ech');
+        const echDomain = echParam ? echParam.split('+')[0] : '';
         
         yaml += `  - name: ${name}\n`;
         yaml += `    type: vless\n`;
@@ -711,11 +742,14 @@ function generateClashConfig(links) {
         yaml += `    port: ${port}\n`;
         yaml += `    uuid: ${uuid}\n`;
         yaml += `    tls: ${tls}\n`;
-        yaml += `    network: ws\n`;
-        yaml += `    ws-opts:\n`;
-        yaml += `      path: ${path}\n`;
+        yaml += `    network: ${transport}\n`;
+        yaml += `    ${transport}-opts:\n`;
+        yaml += `      path: ${JSON.stringify(path)}\n`;
         yaml += `      headers:\n`;
-        yaml += `        Host: ${host}\n`;
+        yaml += `        Host: ${JSON.stringify(host)}\n`;
+        if (transport === 'xhttp') {
+            yaml += `      mode: auto\n`;
+        }
         if (sni) {
             yaml += `    servername: ${sni}\n`;
         }
@@ -841,7 +875,8 @@ function generateHomePage(scuValue) {
         }
         
         .form-group input,
-        .form-group textarea {
+        .form-group textarea,
+        .form-group select {
             width: 100%;
             padding: 14px 16px;
             font-size: 17px;
@@ -856,7 +891,8 @@ function generateHomePage(scuValue) {
         }
         
         .form-group input:focus,
-        .form-group textarea:focus {
+        .form-group textarea:focus,
+        .form-group select:focus {
             background: rgba(142, 142, 147, 0.16);
             border-color: #007AFF;
             transform: scale(1.005);
@@ -865,6 +901,11 @@ function generateHomePage(scuValue) {
         .form-group input::placeholder,
         .form-group textarea::placeholder {
             color: #86868b;
+        }
+
+        .form-group select {
+            appearance: auto;
+            -webkit-appearance: menulist;
         }
         
         .form-group small {
@@ -1141,13 +1182,15 @@ function generateHomePage(scuValue) {
             }
             
             .form-group input,
-            .form-group textarea {
+            .form-group textarea,
+            .form-group select {
                 background: rgba(142, 142, 147, 0.2);
                 color: #f5f5f7;
             }
             
             .form-group input:focus,
-            .form-group textarea:focus {
+            .form-group textarea:focus,
+            .form-group select:focus {
                 background: rgba(142, 142, 147, 0.25);
                 border-color: #5ac8fa;
             }
@@ -1222,9 +1265,18 @@ function generateHomePage(scuValue) {
             </div>
             
             <div class="form-group">
-                <label>WebSocket路径（可选）</label>
+                <label>传输方式</label>
+                <select id="transport">
+                    <option value="ws" selected>WebSocket</option>
+                    <option value="xhttp">XHTTP</option>
+                </select>
+                <small>XHTTP 节点会使用 mode=auto，需客户端内核支持 XHTTP</small>
+            </div>
+
+            <div class="form-group">
+                <label>传输路径（可选）</label>
                 <input type="text" id="customPath" placeholder="留空则使用默认路径 /" value="/">
-                <small style="display: block; margin-top: 6px; color: #86868b; font-size: 13px;">自定义WebSocket路径，例如：/v2ray 或 /</small>
+                <small style="display: block; margin-top: 6px; color: #86868b; font-size: 13px;">应与服务端的 WebSocket/XHTTP 路径保持一致，例如：/v2ray 或 /</small>
             </div>
             
             <div class="list-item" onclick="toggleSwitch('switchDomain')">
@@ -1440,6 +1492,7 @@ function generateHomePage(scuValue) {
             const domain = document.getElementById('domain').value.trim();
             const uuid = document.getElementById('uuid').value.trim();
             const customPath = document.getElementById('customPath').value.trim() || '/';
+            const transport = document.getElementById('transport').value === 'xhttp' ? 'xhttp' : 'ws';
             
             if (!domain || !uuid) {
                 alert('请先填写域名和UUID/Password');
@@ -1473,6 +1526,7 @@ function generateHomePage(scuValue) {
             if (switches.switchVL) subscriptionUrl += '&ev=yes';
             if (switches.switchTJ) subscriptionUrl += '&et=yes';
             if (switches.switchVM) subscriptionUrl += '&mess=yes';
+            if (transport === 'xhttp') subscriptionUrl += '&transport=xhttp';
             
             if (!ipv4Enabled) subscriptionUrl += '&ipv4=no';
             if (!ipv6Enabled) subscriptionUrl += '&ipv6=no';
@@ -1690,8 +1744,9 @@ export default {
 
             // 自定义路径
             const customPath = url.searchParams.get('path') || '/';
+            const transport = normalizeTransport(url.searchParams.get('transport'));
 
-            return await handleSubscriptionRequest(request, uuid, domain, piu, ipv4Enabled, ipv6Enabled, ispMobile, ispUnicom, ispTelecom, evEnabled, etEnabled, vmEnabled, disableNonTLS, customPath, echConfig);
+            return await handleSubscriptionRequest(request, uuid, domain, piu, ipv4Enabled, ipv6Enabled, ispMobile, ispUnicom, ispTelecom, evEnabled, etEnabled, vmEnabled, disableNonTLS, customPath, echConfig, transport);
         }
         
         return new Response('Not Found', { status: 404 });
